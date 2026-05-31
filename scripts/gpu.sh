@@ -63,11 +63,36 @@ gpu_linux_amd() {
     return 1
 }
 
+_set_linux_cpu_temp() {
+    local zone temp type
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -f "$zone/temp" ] || continue
+        temp="$(cat "$zone/temp" 2>/dev/null)" || continue
+        [ -n "$temp" ] || continue
+        [ -f "$zone/type" ] && type="$(cat "$zone/type" 2>/dev/null)" || true
+        case "$type" in
+            x86_pkg_temp|cpu*|acpi)
+                tmux set-option -gq "@gpu_cpu_temp" "$((temp / 1000))°C" 2>/dev/null || true
+                return 0
+                ;;
+        esac
+    done
+    # Fallback: first thermal zone with valid temp
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -f "$zone/temp" ] || continue
+        temp="$(cat "$zone/temp" 2>/dev/null)" || continue
+        [ -n "$temp" ] && [ "$temp" -gt 0 ] 2>/dev/null || continue
+        tmux set-option -gq "@gpu_cpu_temp" "$((temp / 1000))°C" 2>/dev/null || true
+        return 0
+    done
+}
+
 case "$(uname)" in
     Darwin)
         gpu_macos_macmon || echo ""
         ;;
     Linux)
+        _set_linux_cpu_temp
         gpu_linux_nvidia || gpu_linux_amd || echo ""
         ;;
     *)
