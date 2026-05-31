@@ -2,30 +2,17 @@
 # GPU usage monitor for tmux status bar.
 #
 # Supported platforms:
-#   macOS (Apple Silicon): uses `macmon` CLI (sudoless)
+#   macOS (Apple Silicon): reads @gpu_pct from persistent gpu-daemon (instant)
 #   Linux NVIDIA: uses `nvidia-smi`
 #   Linux AMD: reads /sys/class/drm/card*/device/gpu_busy_percent
 #   Other: prints empty string
 set -euo pipefail
 
-interval=1
-while getopts "i:" opt; do
-    case $opt in
-        i) interval="$OPTARG" ;;
-        *) ;;
-    esac
-done
-
 gpu_macos_macmon() {
-    command -v macmon >/dev/null 2>&1 || return 1
-    local line
-    # head -1 reads one JSON line then exits; macmon dies from SIGPIPE
-    line="$(macmon pipe -i "$((interval * 1000))" 2>/dev/null | head -1)" || true
-    [ -n "$line" ] || return 1
-    # gpu_usage: [int, float] — second element is usage ratio 0..1
-    local pct
-    pct="$(echo "$line" | jq -r '(.gpu_usage[1] * 100 | round | tostring) + "%"' 2>/dev/null)" || return 1
-    [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" != "null%" ] && printf "%3s" "$pct" && return 0
+    # Read cached value from persistent daemon — returns instantly
+    local val
+    val="$(tmux show-option -gqv "@gpu_pct" 2>/dev/null)" || true
+    [ -n "$val" ] && printf "%s" "$val" && return 0
     return 1
 }
 

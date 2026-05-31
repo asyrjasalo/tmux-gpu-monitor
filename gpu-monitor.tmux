@@ -39,5 +39,29 @@ update_placeholder() {
 main() {
     update_placeholder "status-right"
     update_placeholder "status-left"
+    start_daemon
 }
+
+# Start persistent macmon daemon on macOS (instant reads via @gpu_pct)
+start_daemon() {
+    [ "$(uname)" = "Darwin" ] || return 0
+    command -v macmon >/dev/null 2>&1 || return 0
+
+    local interval
+    interval="$(get_tmux_option "@gpu_interval" "1")"
+
+    # Kill stale daemon if any (check by locked PID)
+    local pidfile="/tmp/tmux-gpu-daemon.pid"
+    if [ -f "$pidfile" ]; then
+        local oldpid
+        oldpid="$(cat "$pidfile" 2>/dev/null)" || true
+        if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null; then
+            return 0  # daemon already running
+        fi
+    fi
+
+    "$CURRENT_DIR/scripts/gpu-daemon.sh" -i "$interval" &
+    echo $! > "$pidfile"
+}
+
 main
