@@ -8,12 +8,14 @@
 #   Other: prints empty string
 set -euo pipefail
 
+
 gpu_macos_macmon() {
-    # Read cached value from persistent daemon — returns instantly
+    # Read cached values from persistent daemon — returns instantly
     local val
     val="$(tmux show-option -gqv "@gpu_pct" 2>/dev/null)" || true
-    [ -n "$val" ] && printf " %s" "$val" && return 0
-    return 1
+    [ -n "$val" ] || return 1
+    printf " %s" "$val"
+    return 0
 }
 
 gpu_linux_nvidia() {
@@ -23,8 +25,17 @@ gpu_linux_nvidia() {
     [ -n "$out" ] || return 1
     local pct
     pct="$(echo "$out" | head -1 | tr -d '[:space:]')"
-    [ -n "$pct" ] && printf " %3d%%" "$pct" && return 0
-    return 1
+    [ -n "$pct" ] && printf " %3d%%" "$pct" || return 1
+
+    # Set raw temp options for external formatting
+    local gpu_temp
+    gpu_temp="$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null)" || true
+    if [ -n "$gpu_temp" ]; then
+        gpu_temp="$(echo "$gpu_temp" | head -1 | tr -d '[:space:]')"
+        [ -n "$gpu_temp" ] && tmux set-option -gq "@gpu_gpu_temp" "${gpu_temp}°C" 2>/dev/null || true
+    fi
+
+    return 0
 }
 
 gpu_linux_amd() {
@@ -35,7 +46,18 @@ gpu_linux_amd() {
         busy="$card/device/gpu_busy_percent"
         if [ -f "$busy" ]; then
             pct="$(cat "$busy" 2>/dev/null)" || continue
-            [ -n "$pct" ] && printf " %3d%%" "$pct" && return 0
+            [ -n "$pct" ] && printf " %3d%%" "$pct" || continue
+
+            # Set raw GPU temp option for external formatting
+            for hwmon in "$card"/device/hwmon/hwmon*; do
+                if [ -f "$hwmon/temp1_input" ]; then
+                    local t
+                    t="$(cat "$hwmon/temp1_input" 2>/dev/null)" || continue
+                    [ -n "$t" ] && tmux set-option -gq "@gpu_gpu_temp" "$((t / 1000))°C" 2>/dev/null && break
+                fi
+            done
+
+            return 0
         fi
     done
     return 1
