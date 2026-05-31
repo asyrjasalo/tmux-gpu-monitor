@@ -12,7 +12,7 @@ gpu_macos_macmon() {
     # Read cached value from persistent daemon — returns instantly
     local val
     val="$(tmux show-option -gqv "@gpu_pct" 2>/dev/null)" || true
-    [ -n "$val" ] && printf "%s" "$val" && return 0
+    [ -n "$val" ] && printf " %s" "$val" && return 0
     return 1
 }
 
@@ -23,7 +23,7 @@ gpu_linux_nvidia() {
     [ -n "$out" ] || return 1
     local pct
     pct="$(echo "$out" | head -1 | tr -d '[:space:]')"
-    [ -n "$pct" ] && printf "%3d%%" "$pct" && return 0
+    [ -n "$pct" ] && printf " %3d%%" "$pct" && return 0
     return 1
 }
 
@@ -35,7 +35,7 @@ gpu_linux_amd() {
         busy="$card/device/gpu_busy_percent"
         if [ -f "$busy" ]; then
             pct="$(cat "$busy" 2>/dev/null)" || continue
-            [ -n "$pct" ] && printf "%3d%%" "$pct" && return 0
+            [ -n "$pct" ] && printf " %3d%%" "$pct" && return 0
         fi
     done
     return 1
