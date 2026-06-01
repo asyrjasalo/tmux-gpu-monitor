@@ -29,9 +29,9 @@ tmux set-option -gq "@gpu_gpu_temp" "" 2>/dev/null || true
 # Use process substitution so while loop runs in main shell (can detect tmux exit)
 while IFS= read -r line; do
     [ -n "$line" ] || continue
-    pct="$(echo "$line" | jq -r '(.gpu_usage[1] * 100 | round | tostring) + "%"' 2>/dev/null)" || continue
-    [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" != "null%" ] || continue
-    tmux set-option -gq "@gpu_pct" "$(printf "%3s" "$pct")" 2>/dev/null || exit 0
+    pct="$(echo "$line" | jq -r '.gpu_usage[1] * 100 | round' 2>/dev/null)" || continue
+    [ -n "$pct" ] && [ "$pct" != "null" ] || continue
+    tmux set-option -gq "@gpu_pct" "$(printf "%2d%%" "$pct")" 2>/dev/null || exit 0
 
     cpu_temp="$(echo "$line" | jq -r '(.temp.cpu_temp_avg | round | tostring) + "°C"' 2>/dev/null)" || true
     [ -n "$cpu_temp" ] && [ "$cpu_temp" != "null" ] && [ "$cpu_temp" != "null°C" ] && \

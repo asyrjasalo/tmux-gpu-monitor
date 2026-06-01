@@ -14,7 +14,7 @@ gpu_macos_macmon() {
     local val
     val="$(tmux show-option -gqv "@gpu_pct" 2>/dev/null)" || true
     [ -n "$val" ] || return 1
-    printf " %s" "$val"
+    printf "%s" "$val"
     return 0
 }
 
@@ -25,7 +25,7 @@ gpu_linux_nvidia() {
     [ -n "$out" ] || return 1
     local pct
     pct="$(echo "$out" | head -1 | tr -d '[:space:]')"
-    [ -n "$pct" ] && printf " %3d%%" "$pct" || return 1
+    [ -n "$pct" ] && printf "%2d%%" "$pct" || return 1
 
     # Set raw temp options for external formatting
     local gpu_temp
@@ -46,7 +46,7 @@ gpu_linux_amd() {
         busy="$card/device/gpu_busy_percent"
         if [ -f "$busy" ]; then
             pct="$(cat "$busy" 2>/dev/null)" || continue
-            [ -n "$pct" ] && printf " %3d%%" "$pct" || continue
+            [ -n "$pct" ] && printf "%2d%%" "$pct" || continue
 
             # Set raw GPU temp option for external formatting
             for hwmon in "$card"/device/hwmon/hwmon*; do
